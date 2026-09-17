@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0d1220" />
+<title>许家印模拟器 · 终极版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1220'/%3E%3Ctext x='16' y='23' font-size='19' text-anchor='middle'%3E%F0%9F%8F%A2%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ===== 开场 / 规则 ===== -->
+<div class="overlay" id="introOverlay">
+  <div class="panel intro">
+    <div class="intro-glow"></div>
+    <p class="eyebrow">模拟经营 · 债务人生</p>
+    <h1 class="intro-title">🏢 许家印模拟器 <span>终极版</span></h1>
+    <p class="intro-sub">在债务暴雷之前，把净资产做到 <b>100 亿</b>，或者带着钱跑路。</p>
+
+    <div class="howto">
+      <div><i>🏞️</i><span>买地盖楼，囤地等涨价</span></div>
+      <div><i>💳</i><span>借钱扩表，负债就是杠杆</span></div>
+      <div><i>📢</i><span>理财 / 商票 / 预售，快速吸金</span></div>
+      <div><i>🌟</i><span>买豪宅游艇足球队，撑声望</span></div>
+      <div><i>🎭</i><span>造假、转移资产、技术性离婚</span></div>
+      <div><i>💥</i><span>现金还不起日利息 = 暴雷出局</span></div>
+    </div>
+
+    <label class="name-field">
+      <span>董事长姓名</span>
+      <input id="playerName" type="text" maxlength="12" value="许总" autocomplete="off" spellcheck="false" />
+    </label>
+
+    <button class="btn primary big" id="startBtn">开始操盘 →</button>
+    <p class="hint">快捷键：<kbd>1</kbd>~<kbd>9</kbd> 选操作 · <kbd>空格</kbd> 跳过一天 · <kbd>Esc</kbd> 关闭弹窗</p>
+    <p class="hint best-line">历史最佳净资产：<b id="bestIntro">—</b></p>
+  </div>
+</div>
+
+<!-- ===== 主界面 ===== -->
+<div id="game" class="game" hidden>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-logo">🏢</span>
+      <div>
+        <h1>许家印模拟器</h1>
+        <p id="ceoLine">董事长：许总</p>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div class="day-box">
+        <span class="day-label">经营天数</span>
+        <span class="day-num" id="dayNum">1</span>
+      </div>
+      <div class="top-actions">
+        <button class="btn ghost" id="helpBtn" title="玩法说明">❓ 说明</button>
+        <button class="btn ghost danger" id="restartBtn" title="重新开局">↻ 重开</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <!-- ---------- 左：财务看板 ---------- -->
+    <section class="col-left">
+      <div class="card money-card">
+        <div class="money-grid">
+          <div class="money-item" data-watch="cash">
+            <span class="m-label">💰 现金</span>
+            <span class="m-value" id="statCash">1.00<i>亿</i></span>
+          </div>
+          <div class="money-item" data-watch="debt">
+            <span class="m-label">💳 负债</span>
+            <span class="m-value" id="statDebt">0.00<i>亿</i></span>
+          </div>
+          <div class="money-item wide" data-watch="net">
+            <span class="m-label">🏦 净资产</span>
+            <span class="m-value" id="statNet">1.00<i>亿</i></span>
+          </div>
+        </div>
+
+        <div class="goal">
+          <div class="goal-head">
+            <span>目标：净资产 100 亿</span>
+            <b id="goalPct">1.0%</b>
+          </div>
+          <div class="bar goal-bar"><span id="goalFill"></span></div>
+        </div>
+
+        <div class="interest" id="interestBox">
+          <span>💸 日利息</span>
+          <b id="statInterest">0.0000 亿</b>
+        </div>
+      </div>
+
+      <div class="card asset-card">
+        <h2 class="card-title">🏗️ 资产与市场</h2>
+        <div class="asset-row">
+          <div class="asset-chip" data-watch="land">
+            <span class="a-icon">🏞️</span>
+            <div><b id="statLand">0</b><small>土地储备（块）</small></div>
+          </div>
+          <div class="asset-chip" data-watch="building">
+            <span class="a-icon">🏗️</span>
+            <div><b id="statBuilding">0</b><small>可售房源（栋）</small></div>
+          </div>
+        </div>
+        <ul class="price-list">
+          <li data-watch="landPrice"><span>土地单价</span><b id="statLandPrice">1.00 亿</b></li>
+          <li data-watch="housePrice"><span>房屋售价</span><b id="statHousePrice">1.50 亿</b></li>
+          <li data-watch="rate"><span>融资利率</span><b id="statRate">8.0%</b></li>
+          <li><span>信用评级</span><b class="rating" id="statRating">AAA</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ---------- 中：操场 ---------- -->
+    <section class="col-center">
+      <div class="card meter-card">
+        <div class="meter">
+          <div class="meter-head"><span>📊 市场信誉</span><b id="repVal">50</b></div>
+          <div class="bar"><span id="repFill" class="fill rep"></span></div>
+        </div>
+        <div class="meter">
+          <div class="meter-head"><span>🌟 个人声望</span><b id="presVal">50</b></div>
+          <div class="bar"><span id="presFill" class="fill pres"></span></div>
+        </div>
+      </div>
+
+      <div class="card control-card">
+        <div class="control-head">
+          <h2 class="card-title">🎯 本日操作</h2>
+          <span class="control-tip">每次操作结束后进入下一天</span>
+        </div>
+        <div class="action-grid" id="actionGrid"></div>
+      </div>
+    </section>
+
+    <!-- ---------- 右：事件日志 ---------- -->
+    <section class="col-right">
+      <div class="card log-card">
+        <div class="log-head">
+          <h2 class="card-title">📰 财经日志</h2>
+          <button class="btn tiny" id="clearLogBtn">清屏</button>
+        </div>
+        <div class="log-scroll" id="logScroll"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <span>数值规则沿用原版 Python 脚本 · 本作为纯前端离线小游戏</span>
+  </footer>
+</div>
+
+<!-- ===== 通用弹窗 ===== -->
+<div class="overlay modal-overlay" id="modalOverlay" hidden>
+  <div class="panel modal" id="modalPanel" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h3 id="modalTitle">标题</h3>
+      <button class="btn tiny ghost" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ===== 浮动提示 ===== -->
+<div class="toasts" id="toasts"></div>
+
+<script src="game.js"></script>
+</body>
+</html>
