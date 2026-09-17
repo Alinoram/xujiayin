@@ -26,6 +26,10 @@
   const BAILOUT_RATIO_READY = 0.5;  // 早已离婚：留下净值比例
 
   const STORE_BEST = 'xjy_sim_best_v1';
+  const STORE_MUSIC = 'xjy_sim_music_v1';
+  const STORE_VOLUME = 'xjy_sim_volume_v1';
+  const BGM_SRC = 'bgm.mp3';          // 工作区自带的背景音乐（实际为单轨 AAC 的 MP4 容器）
+  const DEFAULT_VOLUME = 0.45;
   const MAX_LOG_NODES = 240;
 
   /* ---------------------------------------------------------
@@ -841,6 +845,130 @@
   }
 
   /* ---------------------------------------------------------
+     背景音乐
+     --------------------------------------------------------- */
+  function readNumStore(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      // 注意 Number(null) === 0，必须先判空再转换，否则读不到时不会回退到默认值
+      if (raw === null || raw === '') return fallback;
+      const v = Number(raw);
+      return isFinite(v) ? v : fallback;
+    } catch (e) { return fallback; }
+  }
+  function writeStore(key, val) {
+    try { localStorage.setItem(key, String(val)); } catch (e) { /* 隐私模式忽略 */ }
+  }
+
+  const music = {
+    el: null,
+    ready: false,          // 音频是否可用（文件缺失/解码失败则置 false）
+    /* 默认开启：进入游戏（用户手势内）即播放，右上角 🎵 可关闭并记住选择 */
+    wantPlay: readNumStore(STORE_MUSIC, 1) === 1,
+    volume: clamp(readNumStore(STORE_VOLUME, DEFAULT_VOLUME), 0, 1)
+  };
+
+  function initMusic() {
+    const btn = $('musicBtn');
+    const slider = $('volume');
+    if (!btn || !slider) return;
+
+    slider.value = String(Math.round(music.volume * 100));
+    paintVolume();
+
+    // 音频元素延迟创建：避免在打不开音频时拖慢开局，也让「首次播放」发生在用户手势内
+    btn.addEventListener('click', () => {
+      if (!music.ready) music.ready = true;
+      ensureAudio();
+      music.wantPlay = !music.wantPlay;
+      writeStore(STORE_MUSIC, music.wantPlay ? 1 : 0);
+      if (music.wantPlay) playBgm(true); else pauseBgm();
+      syncMusicUI();
+      log(music.wantPlay ? '🎵 背景音乐已开启。' : '🔇 背景音乐已关闭。', 'muted');
+    });
+
+    slider.addEventListener('input', () => {
+      music.volume = clamp(Number(slider.value) / 100, 0, 1);
+      writeStore(STORE_VOLUME, music.volume);
+      if (music.el) music.el.volume = music.volume;
+      paintVolume();
+      syncMusicUI();
+    });
+
+    const volBtn = $('volBtn');
+    if (volBtn) volBtn.addEventListener('click', () => { music.el && (music.el.muted = !music.el.muted); syncMusicUI(); });
+
+    syncMusicUI();
+  }
+
+  function paintVolume() {
+    const slider = $('volume');
+    if (slider) slider.style.setProperty('--vol', Math.round(music.volume * 100) + '%');
+    const volBtn = $('volBtn');
+    if (volBtn) volBtn.textContent = music.volume === 0 ? '🔇' : (music.volume < 0.5 ? '🔉' : '🔊');
+  }
+
+  function ensureAudio() {
+    if (music.el) return music.el;
+    const a = document.createElement('audio');
+    a.src = BGM_SRC;
+    a.loop = true;
+    a.preload = 'auto';
+    a.volume = music.volume;
+    a.addEventListener('error', () => {
+      music.ready = false;
+      music.wantPlay = false;
+      syncMusicUI();
+      log('⚠️ 没能加载背景音乐 <b>' + BGM_SRC + '</b>（请确认文件与 index.html 在同一目录）。游戏可正常进行。', 'warn');
+      toast('背景音乐加载失败，游戏不受影响', 'warn', '🎵');
+    });
+    music.el = a;
+    // 挂进 DOM：避免某些浏览器对游离 audio 元素的播放/回收策略差异
+    if (document.body && document.body.appendChild) document.body.appendChild(a);
+    return a;
+  }
+
+  function playBgm(fromGesture) {
+    const a = ensureAudio();
+    const p = a.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => {
+        // 浏览器的自动播放限制：首次必须由用户手势触发
+        if (fromGesture) {
+          log('🔇 浏览器拦截了自动播放，点一下页面或右上角 🎵 即可开始播放。', 'muted');
+        }
+        syncMusicUI();
+      });
+    }
+    syncMusicUI();
+    return p;
+  }
+
+  function pauseBgm() {
+    if (music.el) { try { music.el.pause(); } catch (e) { /* 忽略 */ } }
+    syncMusicUI();
+  }
+
+  function syncMusicUI() {
+    const btn = $('musicBtn');
+    const ico = $('musicIco');
+    if (!btn) return;
+    const playing = !!(music.el && !music.el.paused && !music.el.ended);
+    btn.classList.toggle('playing', playing);
+    btn.classList.toggle('muted', !music.wantPlay || !music.ready);
+    btn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+    btn.title = playing ? '背景音乐：播放中（点击暂停）' : '背景音乐：已关闭（点击播放）';
+    if (ico) ico.textContent = playing ? '🎶' : '🎵';
+  }
+
+  function startMusicFromGesture() {
+    if (!music.wantPlay) { syncMusicUI(); return; }
+    music.ready = true;
+    writeStore(STORE_MUSIC, 1);   // 首次开局即记录「开启」意图，复访时开局也会自动播放
+    playBgm(true);
+  }
+
+  /* ---------------------------------------------------------
      市场事件
      --------------------------------------------------------- */
   const EVENTS = [
@@ -1087,7 +1215,11 @@
       again.type = 'button';
       again.className = 'btn primary';
       again.textContent = '↻ 再开一局';
-      again.addEventListener('click', () => { ui.close(); startGame(state.companyName); });
+      again.addEventListener('click', () => {
+        ui.close();
+        startGame(state.companyName);
+        startMusicFromGesture();   // 结局弹窗里的点击同样是用户手势，音乐可无缝续播
+      });
 
       wrap.appendChild(replay);
       wrap.appendChild(again);
@@ -1207,6 +1339,7 @@
     ['cash', 'debt', 'net', 'land', 'building', 'landPrice', 'housePrice', 'rate'].forEach(registerWatch);
     renderActions();
     render();
+    initMusic();
 
     const best = getBest();
     $('bestIntro').textContent = best > 0 ? fmt(best) + ' 亿' : '—';
@@ -1214,6 +1347,8 @@
     $('startBtn').addEventListener('click', () => {
       const name = ($('playerName').value || '').trim() || '许总';
       startGame(name);
+      // 用户手势内启动：满足浏览器的自动播放策略，进入游戏即响起背景音乐
+      startMusicFromGesture();
     });
     $('playerName').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') $('startBtn').click();
@@ -1226,7 +1361,7 @@
         ui.text('当前进度会全部丢失，确定要从头再来吗？');
         ui.option({
           icon: '↻', name: '重新开始', desc: '现金回到 1 亿，天数回到第 1 天', danger: true,
-          onPick: () => { ui.close(); startGame(state.companyName); }
+          onPick: () => { ui.close(); startGame(state.companyName); startMusicFromGesture(); }
         });
         ui.cancel('继续经营');
       });

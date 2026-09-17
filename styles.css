@@ -332,6 +332,88 @@ kbd {
 
 .day-box { flex: none; }
 
+/* ---------------- 背景音乐控件 ---------------- */
+
+.music-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  transition: border-color .2s ease, background .2s ease;
+}
+.music-wrap:hover { border-color: var(--line-2); background: rgba(255,255,255,0.03); }
+
+.music-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 11px;
+}
+.music-btn .m-ico { font-size: 14px; line-height: 1; }
+.music-btn .m-text { font-size: 12.5px; }
+
+/* 播放中的跳动音条 */
+.m-bars { display: none; align-items: flex-end; gap: 2px; height: 12px; }
+.music-btn.playing .m-bars { display: inline-flex; }
+.music-btn.playing .m-ico { animation: noteFloat 2.4s ease-in-out infinite; }
+.m-bars i {
+  width: 2.5px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--gold);
+  animation: eqBounce .9s ease-in-out infinite;
+}
+.m-bars i:nth-child(2) { animation-delay: .18s; }
+.m-bars i:nth-child(3) { animation-delay: .36s; }
+
+.music-btn.playing {
+  border-color: rgba(242, 193, 78, 0.55);
+  background: linear-gradient(180deg, rgba(242,193,78,0.18), rgba(242,193,78,0.05));
+  color: var(--gold-2);
+}
+.music-btn.muted { opacity: .62; }
+
+.volume-wrap { display: flex; align-items: center; gap: 4px; }
+.vol-btn { padding: 5px 7px; font-size: 12px; line-height: 1; }
+
+.volume {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 72px;
+  height: 4px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, rgba(242,193,78,0.75) var(--vol, 45%), rgba(255,255,255,0.12) var(--vol, 45%));
+  outline: none;
+  cursor: pointer;
+}
+.volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--gold-2);
+  border: 2px solid #1a1405;
+  box-shadow: 0 0 8px rgba(242,193,78,0.6);
+  cursor: pointer;
+}
+.volume::-moz-range-thumb {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--gold-2);
+  border: 2px solid #1a1405;
+  cursor: pointer;
+}
+.volume:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+@keyframes eqBounce {
+  0%, 100% { height: 4px; opacity: .55; }
+  50% { height: 12px; opacity: 1; }
+}
+@keyframes noteFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(-8deg); }
+}
+
 .layout {
   flex: 1;
   display: grid;
@@ -916,6 +998,12 @@ kbd {
   .day-box { padding: 4px 10px; }
   .day-num { font-size: 18px; }
   .top-actions .btn { padding: 7px 9px; font-size: 12px; }
+
+  /* 音乐控件在窄屏收起文字与音量条，只留图标 */
+  .music-wrap { padding: 0; gap: 0; border-color: transparent; background: none; }
+  .music-btn .m-text { display: none; }
+  .music-btn { padding: 7px 9px; gap: 4px; }
+  .volume-wrap { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
